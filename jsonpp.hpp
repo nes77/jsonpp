@@ -84,6 +84,10 @@ namespace jsonpp {
         return out;
     }
 
+    std::string parse_str(const std::string &str) {
+        return "";
+    }
+
     class JSONValue {
     public:
         virtual std::string to_string() const = 0;
@@ -198,8 +202,68 @@ namespace jsonpp {
 
     };
 
+    class JSONString : public JSONValue {
+        std::string value;
+
+    public:
+        JSONString() : JSONValue() {}
+        JSONString(const JSONString& that) {
+            value = std::string(that.value);
+        }
+
+        JSONString(const std::string& str, bool parse=false) {
+            if (!parse) {
+                value = std::string(str);
+            } else {
+                value = jsonpp::parse_str(str);
+            }
+        }
+
+        operator std::string() const {
+            return std::string(value);
+        }
+
+        JSONString& operator=(JSONString that) {
+            std::swap(value, that.value);
+            return *this;
+        }
+
+        std::string to_string() const {
+            std::string out = "\"";
+            out.append(jsonpp::escape_str(value));
+            out.append("\"");
+            return out;
+        }
+
+        JSONString* create() const {
+            return new JSONString();
+        }
+
+        JSONString* clone() const {
+            return new JSONString(*this);
+        }
+    };
+
+    enum class NumberType {
+        FLOAT,
+        INTEGER
+    };
+
+    class JSONNumber : public JSONValue {
+        NumberType type;
+        union {
+            double dbl;
+            int64_t integer;
+        } val;
+
+        template <typename T>
+        T get() const {
+
+        }
+    };
+
     class JSONObject : public JSONValue {
-        std::map<std::string, JSONValue*> values;
+        std::map<JSONString, JSONValue*> values;
 
         void swap(const JSONObject& that) { std::swap(values, that.values); }
 
@@ -215,8 +279,8 @@ namespace jsonpp {
             }
         }
 
-        typedef std::map<std::string, JSONValue*>::iterator iterator;
-        typedef std::map<std::string, JSONValue*>::const_iterator const_iterator;
+        typedef std::map<JSONString, JSONValue*>::iterator iterator;
+        typedef std::map<JSONString, JSONValue*>::const_iterator const_iterator;
 
         iterator begin() { return values.begin(); }
         iterator end() {return values.end(); }
@@ -254,9 +318,8 @@ namespace jsonpp {
             std::string out = "{";
 
             for (auto& pa : this->values) {
-                out.append("\"");
-                out.append(escape_str(pa.first));
-                out.append("\"");
+                out.append(pa.first.to_string());
+                out.append(pa.second->to_string());
             }
 
             out.erase(out.length() - 2);
